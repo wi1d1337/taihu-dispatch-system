@@ -408,3 +408,10 @@ insert into tz_algo_param (param_key, param_value, min_value, max_value, unit, m
 ('autotune.window_days',  30,  7, 180, '天',   '回看窗口',                         'seed', sysdate(), 1),
 ('autotune.max_step_pct', 10,  1,  30, '%',    '单次调整最大幅度',                 'seed', sysdate(), 1),
 ('autotune.min_gain',      2,  0.5, 10, 'pp',  '最小改进阈值（命中率百分点）',     'seed', sysdate(), 1);
+
+-- ----------------------------
+-- 6、产品去品牌（界面不显示若依：隐藏官网外链菜单、改默认昵称、停用演示账号）
+-- ----------------------------
+update sys_menu set visible = '1' where menu_id = 4;
+update sys_user set nick_name = '管理员' where user_id = 1 and nick_name = '若依';
+update sys_user set status = '1' where user_name = 'ry';

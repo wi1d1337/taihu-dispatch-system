@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="lake" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2E86C1"/>
+      <stop offset="100%" stop-color="#1B4F72"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#lake)"/>
+  <g stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none">
+    <path d="M 14 26 Q 20 20, 26 26 T 38 26 T 50 26"/>
+    <path d="M 14 37 Q 20 31, 26 37 T 38 37 T 50 37"/>
+    <path d="M 20 48 Q 26 42, 32 48 T 44 48"/>
+  </g>
+</svg>

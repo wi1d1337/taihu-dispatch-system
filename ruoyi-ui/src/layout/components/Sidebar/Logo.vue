@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import logo from '@/assets/logo/logo.png'
+import logo from '@/assets/logo/logo.svg'
 import useSettingsStore from '@/store/modules/settings'
 import variables from '@/assets/styles/variables.module.scss'
 
@@ -25,7 +25,8 @@ defineProps({
   }
 })
 
-const title = import.meta.env.VITE_APP_TITLE
+// 侧边栏 Logo 使用系统短名
+const title = import.meta.env.VITE_APP_SHORT_TITLE || import.meta.env.VITE_APP_TITLE
 const settingsStore = useSettingsStore()
 const sideTheme = computed(() => settingsStore.sideTheme)
 
