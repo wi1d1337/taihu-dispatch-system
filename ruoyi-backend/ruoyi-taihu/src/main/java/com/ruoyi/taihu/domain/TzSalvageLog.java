@@ -24,17 +24,14 @@ public class TzSalvageLog extends BaseEntity
     /** 关联调度单ID（可空=计划外作业） */
     private Long orderId;
 
-    /** 船只ID */
-    @NotNull(message = "船只不能为空")
+    /** 船只ID（带 orderId 时由服务层从调度单带出，计划外作业必填） */
     private Long boatId;
 
-    /** 分区ID */
-    @NotNull(message = "分区不能为空")
+    /** 分区ID（带 orderId 时由服务层从调度单带出） */
     private Long zoneId;
 
-    /** 作业日期 */
+    /** 作业日期（带 orderId 时由服务层从调度单带出） */
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
-    @NotNull(message = "作业日期不能为空")
     @Excel(name = "作业日期", width = 12, dateFormat = "yyyy-MM-dd")
     private Date logDate;
 

@@ -50,10 +50,11 @@ def seed(db: Session, days: int = 120) -> dict:
     db.commit()
 
     # 3) 合成历史（每分区一条 Chl-a 序列）+ 派生预报/台账/调度单
+    # 日期重映射：synth 索引从 2023-01-01 起，此处平移为"以昨天结尾的最近 days 天"
     rng = np.random.default_rng(42)
     df = synth_taihu(days=days, seed=42)
     today = dt.date.today()
-    dates = [d.date() for d in sorted({idx for idx in df.index})]
+    dates = [today - dt.timedelta(days=days - i) for i in range(days)]  # dates[-1] = 昨天
     history = {zid: [] for zid in zone_id.values()}
     boats = [b.boat_id for b in db.query(TzBoat).all()]
     stats = {"zones": len(ZONES), "boats": len(FLEET), "stations": len(STATIONS),
@@ -82,12 +83,16 @@ def seed(db: Session, days: int = 120) -> dict:
                 continue
             half = "0" if rng.random() < 0.5 else "1"
             bid = int(boats[rng.integers(0, len(boats))])
-            prob = float(np.clip((c / max(thr_by_zone[zid], 1)) * 0.45 + rng.normal(0, 0.12), 0.02, 0.98))
-            # 事件对齐：预报高概率→大概率出藻；偶发漏报/空报让指标非平凡
-            actual = max(0.0, plan * float(np.clip(rng.normal(0.92, 0.25), 0.3, 1.4)))
+            # 先定实况（当日是否出船/出藻），再生成与之联动的预报概率——保证指标非平凡但可信
+            dispatched = rng.random() < 0.75
+            actual = max(0.0, plan * float(np.clip(rng.normal(0.92, 0.25), 0.3, 1.4))) if dispatched else 0.0
+            if actual >= 10.0:
+                prob = float(np.clip(rng.normal(0.78, 0.10), 0.05, 0.97))
+            else:
+                prob = float(np.clip(rng.normal(0.22, 0.12), 0.02, 0.60))
             db.add(TzForecastRecord(zone_id=zid, fc_date=d, horizon_h=72, prob=round(prob, 2),
                                     chla_q25=round(c * 0.8, 1), chla_q50=round(c, 1), chla_q75=round(c * 1.2, 1)))
-            if rng.random() < 0.75:  # 25% 概率当日未出船（漏报来源之一）
+            if dispatched:
                 db.add(TzDispatchOrder(order_date=d, half_day=half, boat_id=bid, zone_id=zid,
                                        station_id=None, plan_tons=plan, status="3",
                                        actual_tons=round(actual, 1), solver="CP_SAT",

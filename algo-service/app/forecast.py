@@ -28,8 +28,10 @@ def forecast_zone(history: np.ndarray) -> dict:
     q50 = float(np.median(recent))                      # 持续性中心
     q25 = float(np.quantile(recent, 0.25))              # 分位区间
     q75 = float(np.quantile(recent, 0.75))
-    exceed = float((recent[-7:] >= thr).mean())          # 近 7 日超阈频率 → 事件概率
-    prob = round(min(max(exceed, 0.02), 0.98), 2)
+    exceed = float((recent[-7:] >= thr).mean())          # 近 7 日超阈频率
+    # 概率 = 超阈频率 × 当前强度 混合（保证分区之间有色阶差异，演示口径）
+    intensity = min(max((q50 - 0.6 * thr) / max(thr, 1.0), 0.0), 1.0)
+    prob = round(min(max(0.5 * exceed + 0.5 * intensity, 0.02), 0.98), 2)
     return {"prob": prob, "q25": round(max(q25, 0.5), 1), "q50": round(max(q50, 0.5), 1),
             "q75": round(max(q75, 0.5), 1), "threshold": round(thr, 1)}
 

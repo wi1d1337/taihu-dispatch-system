@@ -56,6 +56,11 @@ public class TzSalvageLogServiceImpl implements ITzSalvageLogService
             tzSalvageLog.setLogDate(order.getOrderDate());
             tzSalvageLog.setHalfDay(order.getHalfDay());
         }
+        // 完整性兜底：带出后仍缺关键字段（计划外作业未填）则拒绝
+        if (tzSalvageLog.getBoatId() == null || tzSalvageLog.getZoneId() == null || tzSalvageLog.getLogDate() == null)
+        {
+            throw new ServiceException("船只、分区、作业日期不能为空（计划外作业请直接填写，或关联有效的调度单）");
+        }
         tzSalvageLog.setCreateTime(DateUtils.getNowDate());
         return tzSalvageLogMapper.insertSalvageLog(tzSalvageLog);
     }
