@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzWorkOrderMapper">
+
+    <resultMap type="TzWorkOrder" id="TzWorkOrderResult">
+        <id     property="orderId"       column="order_id"       />
+        <result property="orderNo"       column="order_no"       />
+        <result property="zoneId"        column="zone_id"        />
+        <result property="level"         column="level"          />
+        <result property="source"        column="source"         />
+        <result property="assessmentId"  column="assessment_id"  />
+        <result property="status"        column="status"         />
+        <result property="leaderId"      column="leader_id"      />
+        <result property="boatId"        column="boat_id"        />
+        <result property="crewIds"       column="crew_ids"       />
+        <result property="deadline"      column="deadline"       />
+        <result property="dispatchedAt"  column="dispatched_at"  />
+        <result property="acceptedAt"    column="accepted_at"    />
+        <result property="arrivedAt"     column="arrived_at"     />
+        <result property="submittedAt"   column="submitted_at"   />
+        <result property="checkedAt"     column="checked_at"     />
+        <result property="actualTons"    column="actual_tons"    />
+        <result property="photoUrls"     column="photo_urls"     />
+        <result property="arriveLng"     column="arrive_lng"     />
+        <result property="arriveLat"     column="arrive_lat"     />
+        <result property="suggestBoats"  column="suggest_boats"  />
+        <result property="revokeReason"  column="revoke_reason"  />
+        <result property="checkComment"  column="check_comment"  />
+        <result property="modelVersion"  column="model_version"  />
+        <result property="paramVersion"  column="param_version"  />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+        <result property="zoneName"      column="zone_name"      />
+        <result property="leaderName"    column="leader_name"    />
+        <result property="boatName"      column="boat_name"      />
+    </resultMap>
+
+    <sql id="selectTzWorkOrderVo">
+        select o.order_id, o.order_no, o.zone_id, o.level, o.source, o.assessment_id, o.status,
+               o.leader_id, o.boat_id, o.crew_ids, o.deadline, o.dispatched_at, o.accepted_at, o.arrived_at,
+               o.submitted_at, o.checked_at, o.actual_tons, o.photo_urls, o.arrive_lng, o.arrive_lat,
+               o.suggest_boats, o.revoke_reason, o.check_comment, o.model_version, o.param_version,
+               o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
+               z.zone_name, w.worker_name as leader_name, b.boat_name
+        from tz_work_order o
+        left join tz_zone z on z.zone_id = o.zone_id
+        left join tz_worker w on w.worker_id = o.leader_id
+        left join tz_boat b on b.boat_id = o.boat_id
+    </sql>
+
+    <sql id="orderFilters">
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                and o.order_no like concat('%', #{orderNo}, '%')
+            </if>
+            <if test="zoneId != null">
+                and o.zone_id = #{zoneId}
+            </if>
+            <if test="level != null and level != ''">
+                and o.level = #{level}
+            </if>
+            <if test="source != null and source != ''">
+                and o.source = #{source}
+            </if>
+            <if test="status != null and status != ''">
+                and o.status = #{status}
+            </if>
+            <if test="leaderId != null">
+                and o.leader_id = #{leaderId}
+            </if>
+            <if test="crewWorkerId != null">
+                and find_in_set(#{crewWorkerId}, o.crew_ids)
+            </if>
+            <if test="orderDate != null and orderDate != ''">
+                and date(o.create_time) = #{orderDate}
+            </if>
+            <if test="beginDate != null and beginDate != ''">
+                and date(o.create_time) &gt;= #{beginDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                and date(o.create_time) &lt;= #{endDate}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectWorkOrderList" parameterType="TzWorkOrder" resultMap="TzWorkOrderResult">
+        <include refid="selectTzWorkOrderVo"/>
+        <include refid="orderFilters"/>
+        order by o.order_id desc
+    </select>
+
+    <select id="selectWorkOrderById" parameterType="Long" resultMap="TzWorkOrderResult">
+        <include refid="selectTzWorkOrderVo"/>
+        where o.order_id = #{orderId}
+    </select>
+
+    <select id="selectActiveOrders" resultMap="TzWorkOrderResult">
+        select order_id, order_no, zone_id, level, source, status, leader_id, boat_id, crew_ids, deadline,
+               dispatched_at, accepted_at, arrived_at, submitted_at, checked_at, create_time
+        from tz_work_order
+        where status in ('0', '1', '2', '3')
+        order by order_id
+    </select>
+
+    <select id="selectMaxOrderNo" parameterType="String" resultType="String">
+        select max(order_no) from tz_work_order where order_no like concat(#{prefix}, '%')
+    </select>
+
+    <insert id="insertWorkOrder" parameterType="TzWorkOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into tz_work_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="zoneId != null">zone_id,</if>
+            <if test="level != null and level != ''">level,</if>
+            <if test="source != null and source != ''">source,</if>
+            <if test="assessmentId != null">assessment_id,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="leaderId != null">leader_id,</if>
+            <if test="boatId != null">boat_id,</if>
+            <if test="crewIds != null">crew_ids,</if>
+            <if test="deadline != null">deadline,</if>
+            <if test="dispatchedAt != null">dispatched_at,</if>
+            <if test="acceptedAt != null">accepted_at,</if>
+            <if test="arrivedAt != null">arrived_at,</if>
+            <if test="submittedAt != null">submitted_at,</if>
+            <if test="checkedAt != null">checked_at,</if>
+            <if test="actualTons != null">actual_tons,</if>
+            <if test="photoUrls != null">photo_urls,</if>
+            <if test="arriveLng != null">arrive_lng,</if>
+            <if test="arriveLat != null">arrive_lat,</if>
+            <if test="suggestBoats != null">suggest_boats,</if>
+            <if test="revokeReason != null">revoke_reason,</if>
+            <if test="checkComment != null">check_comment,</if>
+            <if test="modelVersion != null">model_version,</if>
+            <if test="paramVersion != null">param_version,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="zoneId != null">#{zoneId},</if>
+            <if test="level != null and level != ''">#{level},</if>
+            <if test="source != null and source != ''">#{source},</if>
+            <if test="assessmentId != null">#{assessmentId},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="leaderId != null">#{leaderId},</if>
+            <if test="boatId != null">#{boatId},</if>
+            <if test="crewIds != null">#{crewIds},</if>
+            <if test="deadline != null">#{deadline},</if>
+            <if test="dispatchedAt != null">#{dispatchedAt},</if>
+            <if test="acceptedAt != null">#{acceptedAt},</if>
+            <if test="arrivedAt != null">#{arrivedAt},</if>
+            <if test="submittedAt != null">#{submittedAt},</if>
+            <if test="checkedAt != null">#{checkedAt},</if>
+            <if test="actualTons != null">#{actualTons},</if>
+            <if test="photoUrls != null">#{photoUrls},</if>
+            <if test="arriveLng != null">#{arriveLng},</if>
+            <if test="arriveLat != null">#{arriveLat},</if>
+            <if test="suggestBoats != null">#{suggestBoats},</if>
+            <if test="revokeReason != null">#{revokeReason},</if>
+            <if test="checkComment != null">#{checkComment},</if>
+            <if test="modelVersion != null">#{modelVersion},</if>
+            <if test="paramVersion != null">#{paramVersion},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWorkOrder" parameterType="TzWorkOrder">
+        update tz_work_order
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="zoneId != null">zone_id = #{zoneId},</if>
+            <if test="level != null and level != ''">level = #{level},</if>
+            <if test="source != null and source != ''">source = #{source},</if>
+            <if test="assessmentId != null">assessment_id = #{assessmentId},</if>
+            status = #{status},
+            <if test="leaderId != null">leader_id = #{leaderId},</if>
+            <if test="boatId != null">boat_id = #{boatId},</if>
+            <if test="crewIds != null">crew_ids = #{crewIds},</if>
+            <if test="deadline != null">deadline = #{deadline},</if>
+            <if test="dispatchedAt != null">dispatched_at = #{dispatchedAt},</if>
+            <if test="acceptedAt != null">accepted_at = #{acceptedAt},</if>
+            <if test="arrivedAt != null">arrived_at = #{arrivedAt},</if>
+            <if test="submittedAt != null">submitted_at = #{submittedAt},</if>
+            <if test="checkedAt != null">checked_at = #{checkedAt},</if>
+            <if test="actualTons != null">actual_tons = #{actualTons},</if>
+            <if test="photoUrls != null">photo_urls = #{photoUrls},</if>
+            <if test="arriveLng != null">arrive_lng = #{arriveLng},</if>
+            <if test="arriveLat != null">arrive_lat = #{arriveLat},</if>
+            <if test="suggestBoats != null">suggest_boats = #{suggestBoats},</if>
+            <if test="revokeReason != null">revoke_reason = #{revokeReason},</if>
+            <if test="checkComment != null">check_comment = #{checkComment},</if>
+            <if test="modelVersion != null">model_version = #{modelVersion},</if>
+            <if test="paramVersion != null">param_version = #{paramVersion},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime},
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where order_id = #{orderId}
+    </update>
+
+    <delete id="deleteWorkOrderById" parameterType="Long">
+        delete from tz_work_order where order_id = #{orderId}
+    </delete>
+
+    <!-- 改派用：清空船只/打捞员/接单时间，工单回待接单重新走两级派发 -->
+    <update id="clearAssignment" parameterType="TzWorkOrder">
+        update tz_work_order
+        set boat_id = null, crew_ids = null, accepted_at = null,
+            update_time = #{updateTime}, update_by = #{updateBy}
+        where order_id = #{orderId}
+    </update>
+
+    <delete id="deleteWorkOrderByIds" parameterType="String">
+        delete from tz_work_order where order_id in
+        <foreach collection="array" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzAssessmentMapper">
+
+    <resultMap type="TzAssessment" id="TzAssessmentResult">
+        <id     property="assessmentId" column="assessment_id" />
+        <result property="assessDate"   column="assess_date"   />
+        <result property="zoneId"       column="zone_id"       />
+        <result property="level"        column="level"         />
+        <result property="predicted"    column="predicted"     />
+        <result property="yoy"          column="yoy"           />
+        <result property="recent7"      column="recent7"       />
+        <result property="trend"        column="trend"         />
+        <result property="basis"        column="basis"         />
+        <result property="confidence"   column="confidence"    />
+        <result property="modelVersion" column="model_version" />
+        <result property="paramVersion" column="param_version" />
+        <result property="createdAt"    column="created_at"    />
+        <result property="zoneName"     column="zone_name"     />
+    </resultMap>
+
+    <sql id="selectTzAssessmentVo">
+        select a.assessment_id, a.assess_date, a.zone_id, a.level, a.predicted, a.yoy, a.recent7, a.trend,
+               a.basis, a.confidence, a.model_version, a.param_version, a.created_at, z.zone_name
+        from tz_assessment a
+        left join tz_zone z on z.zone_id = a.zone_id
+    </sql>
+
+    <select id="selectAssessmentList" parameterType="TzAssessment" resultMap="TzAssessmentResult">
+        <include refid="selectTzAssessmentVo"/>
+        <where>
+            <if test="assessDate != null">
+                and a.assess_date = #{assessDate}
+            </if>
+            <if test="beginDate != null and beginDate != ''">
+                and a.assess_date &gt;= #{beginDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                and a.assess_date &lt;= #{endDate}
+            </if>
+            <if test="zoneId != null">
+                and a.zone_id = #{zoneId}
+            </if>
+            <if test="level != null and level != ''">
+                and a.level = #{level}
+            </if>
+        </where>
+        order by a.assess_date desc, a.zone_id
+    </select>
+
+    <select id="selectAssessmentById" parameterType="Long" resultMap="TzAssessmentResult">
+        <include refid="selectTzAssessmentVo"/>
+        where a.assessment_id = #{assessmentId}
+    </select>
+</mapper>

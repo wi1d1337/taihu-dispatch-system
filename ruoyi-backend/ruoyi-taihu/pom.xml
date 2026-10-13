@@ -23,6 +23,12 @@
             <artifactId>ruoyi-common</artifactId>
         </dependency>
 
+        <!-- 框架核心（v2 H5 登录复用 SysLoginService/AuthenticationManager） -->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-framework</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

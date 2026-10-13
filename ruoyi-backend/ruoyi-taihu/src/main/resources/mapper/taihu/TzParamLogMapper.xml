@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzParamLogMapper">
+
+    <resultMap type="TzParamLog" id="TzParamLogResult">
+        <id     property="logId"      column="log_id"      />
+        <result property="paramKey"   column="param_key"   />
+        <result property="oldValue"   column="old_value"   />
+        <result property="newValue"   column="new_value"   />
+        <result property="oldVersion" column="old_version" />
+        <result property="newVersion" column="new_version" />
+        <result property="trigger"    column="trigger"     />
+        <result property="evidence"   column="evidence"    />
+        <result property="operator"   column="operator"    />
+        <result property="createdAt"  column="created_at"  />
+    </resultMap>
+
+    <select id="selectParamLogList" parameterType="TzParamLog" resultMap="TzParamLogResult">
+        select log_id, param_key, old_value, new_value, old_version, new_version, `trigger`, evidence, operator, created_at
+        from tz_param_log
+        <where>
+            <if test="paramKey != null and paramKey != ''">
+                and param_key = #{paramKey}
+            </if>
+            <if test="trigger != null and trigger != ''">
+                and `trigger` = #{trigger}
+            </if>
+        </where>
+        order by log_id desc
+    </select>
+</mapper>

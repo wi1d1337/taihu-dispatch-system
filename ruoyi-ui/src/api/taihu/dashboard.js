@@ -1,8 +1,7 @@
 import request from '@/utils/request'
 
-// 运行看板数据（后端合并 algo /dashboard/eval 与 /history/series）
-// 期望结构：{ kpi:{POD,FAR,CSI}, daily:[{date,planTons,actualTons,absDev}],
-//            zoneStats:[...], history:{dates:[], zones:{分区名: chla[]}} }
+// 考核看板（days=30）：响应时长分布（派单→接单/到场/办结）、办结率、
+// 日生日清率、超时督办次数、各分区吨数（代理 algo /dashboard/eval）
 export function getDashboard(query) {
   return request({
     url: '/taihu/dashboard',

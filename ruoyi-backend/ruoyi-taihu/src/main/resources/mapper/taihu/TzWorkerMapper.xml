@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzWorkerMapper">
+
+    <resultMap type="TzWorker" id="TzWorkerResult">
+        <id     property="workerId"   column="worker_id"   />
+        <result property="workerName" column="worker_name" />
+        <result property="role"       column="role"        />
+        <result property="phone"      column="phone"       />
+        <result property="zoneId"     column="zone_id"     />
+        <result property="teamName"   column="team_name"   />
+        <result property="username"   column="username"    />
+        <result property="status"     column="status"      />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"      />
+        <result property="zoneName"   column="zone_name"   />
+    </resultMap>
+
+    <sql id="selectTzWorkerVo">
+        select w.worker_id, w.worker_name, w.role, w.phone, w.zone_id, w.team_name, w.username, w.status,
+               w.create_by, w.create_time, w.update_by, w.update_time, w.remark, z.zone_name
+        from tz_worker w
+        left join tz_zone z on z.zone_id = w.zone_id
+    </sql>
+
+    <select id="selectWorkerList" parameterType="TzWorker" resultMap="TzWorkerResult">
+        <include refid="selectTzWorkerVo"/>
+        <where>
+            <if test="workerName != null and workerName != ''">
+                and w.worker_name like concat('%', #{workerName}, '%')
+            </if>
+            <if test="role != null and role != ''">
+                and w.role = #{role}
+            </if>
+            <if test="zoneId != null">
+                and w.zone_id = #{zoneId}
+            </if>
+            <if test="teamName != null and teamName != ''">
+                and w.team_name like concat('%', #{teamName}, '%')
+            </if>
+            <if test="username != null and username != ''">
+                and w.username = #{username}
+            </if>
+            <if test="status != null and status != ''">
+                and w.status = #{status}
+            </if>
+        </where>
+        order by w.worker_id
+    </select>
+
+    <select id="selectWorkerById" parameterType="Long" resultMap="TzWorkerResult">
+        <include refid="selectTzWorkerVo"/>
+        where w.worker_id = #{workerId}
+    </select>
+
+    <select id="selectWorkerByUsername" parameterType="String" resultMap="TzWorkerResult">
+        <include refid="selectTzWorkerVo"/>
+        where w.username = #{username} and w.status = '0'
+        limit 1
+    </select>
+
+    <insert id="insertWorker" parameterType="TzWorker" useGeneratedKeys="true" keyProperty="workerId">
+        insert into tz_worker
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="workerName != null and workerName != ''">worker_name,</if>
+            <if test="role != null and role != ''">role,</if>
+            <if test="phone != null">phone,</if>
+            <if test="zoneId != null">zone_id,</if>
+            <if test="teamName != null">team_name,</if>
+            <if test="username != null">username,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="workerName != null and workerName != ''">#{workerName},</if>
+            <if test="role != null and role != ''">#{role},</if>
+            <if test="phone != null">#{phone},</if>
+            <if test="zoneId != null">#{zoneId},</if>
+            <if test="teamName != null">#{teamName},</if>
+            <if test="username != null">#{username},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWorker" parameterType="TzWorker">
+        update tz_worker
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="workerName != null and workerName != ''">worker_name = #{workerName},</if>
+            <if test="role != null and role != ''">role = #{role},</if>
+            phone = #{phone},
+            zone_id = #{zoneId},
+            team_name = #{teamName},
+            username = #{username},
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime},
+            remark = #{remark},
+        </trim>
+        where worker_id = #{workerId}
+    </update>
+
+    <delete id="deleteWorkerById" parameterType="Long">
+        delete from tz_worker where worker_id = #{workerId}
+    </delete>
+
+    <delete id="deleteWorkerByIds" parameterType="String">
+        delete from tz_worker where worker_id in
+        <foreach collection="array" item="workerId" open="(" separator="," close=")">
+            #{workerId}
+        </foreach>
+    </delete>
+
+    <select id="selectCandidateLeader" resultMap="TzWorkerResult">
+        <include refid="selectTzWorkerVo"/>
+        where w.role = '1' and w.status = '0' and w.zone_id = #{zoneId} and w.worker_id != #{excludeLeaderId}
+        order by case when w.worker_id > #{excludeLeaderId} then 0 else 1 end, w.worker_id
+        limit 1
+    </select>
+</mapper>

@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-// 查询调度单列表（分页：date/status/halfDay 过滤，联表返回 boatName/zoneName/stationName）
+// 工单分页列表（过滤：date/zoneId/level/status，联表返回 zoneName/leaderName/boatName）
 export function listOrder(query) {
   return request({
     url: '/taihu/orders/list',
@@ -9,7 +9,7 @@ export function listOrder(query) {
   })
 }
 
-// 调度单详情
+// 工单详情（含流转日志 logs，字段以后端实现为准）
 export function getOrder(orderId) {
   return request({
     url: '/taihu/orders/' + orderId,
@@ -17,28 +17,38 @@ export function getOrder(orderId) {
   })
 }
 
-// 待确认 → 已确认
-export function confirmOrder(orderId) {
+// 人工创建工单（source=2）
+export function addOrder(data) {
   return request({
-    url: '/taihu/orders/' + orderId + '/confirm',
-    method: 'put'
+    url: '/taihu/orders',
+    method: 'post',
+    data: data
   })
 }
 
-// 待确认 → 已驳回（remark 必填驳回原因）
-export function rejectOrder(orderId, remark) {
+// 撤销（status∈{0,1}，revokeReason 必填）→ 6
+export function revokeOrder(orderId, revokeReason) {
   return request({
-    url: '/taihu/orders/' + orderId + '/reject',
+    url: '/taihu/orders/' + orderId + '/revoke',
     method: 'put',
-    data: { remark }
+    data: { revokeReason }
   })
 }
 
-// 已确认 → 已完成（actualTons 选填，缺省取台账汇总）
-export function doneOrder(orderId, actualTons) {
+// 改派（leaderId）→ 回 0，记日志
+export function reassignOrder(orderId, leaderId) {
   return request({
-    url: '/taihu/orders/' + orderId + '/done',
+    url: '/taihu/orders/' + orderId + '/reassign',
     method: 'put',
-    data: { actualTons }
+    data: { leaderId }
+  })
+}
+
+// 核查（status=3 → pass=true→4 / false→5+checkComment）
+export function checkOrder(orderId, pass, checkComment) {
+  return request({
+    url: '/taihu/orders/' + orderId + '/check',
+    method: 'put',
+    data: { pass, checkComment }
   })
 }

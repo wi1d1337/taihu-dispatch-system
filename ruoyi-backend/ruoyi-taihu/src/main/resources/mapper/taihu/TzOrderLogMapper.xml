@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzOrderLogMapper">
+
+    <resultMap type="TzOrderLog" id="TzOrderLogResult">
+        <id     property="logId"        column="log_id"        />
+        <result property="orderId"      column="order_id"      />
+        <result property="action"       column="action"        />
+        <result property="operator"     column="operator"      />
+        <result property="fromStatus"   column="from_status"   />
+        <result property="toStatus"     column="to_status"     />
+        <result property="note"         column="note"          />
+        <result property="createdAt"    column="created_at"    />
+        <result property="operatorName" column="operator_name" />
+    </resultMap>
+
+    <insert id="insertOrderLog" parameterType="TzOrderLog" useGeneratedKeys="true" keyProperty="logId">
+        insert into tz_order_log (order_id, action, operator, from_status, to_status, note, created_at)
+        values (#{orderId}, #{action}, #{operator}, #{fromStatus}, #{toStatus}, #{note}, sysdate())
+    </insert>
+
+    <select id="selectLogsByOrderId" parameterType="Long" resultMap="TzOrderLogResult">
+        select l.log_id, l.order_id, l.action, l.operator, l.from_status, l.to_status, l.note, l.created_at,
+               w.worker_name as operator_name
+        from tz_order_log l
+        left join tz_worker w on w.username = l.operator
+        where l.order_id = #{orderId}
+        order by l.log_id
+    </select>
+
+    <select id="selectLastActionTime" resultType="java.util.Date">
+        select max(created_at) from tz_order_log
+        where order_id = #{orderId} and action in
+        <foreach collection="actions" item="action" open="(" separator="," close=")">
+            #{action}
+        </foreach>
+    </select>
+
+    <delete id="deleteLogsByOrderIds" parameterType="String">
+        delete from tz_order_log where order_id in
+        <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,136 +1,189 @@
-# 太湖调度系统 · 接口契约与数据契约（v1，2026-10-13）
+# 太湖调度系统 · 接口契约 v2（工单工作流版，2026-10-14）
 
-> 本文件是三路并行开发的单一事实源：be-ruoyi（Java 业务模块）、fe-admin（RuoYi-Vue3 前端）、主对话（algo-service Python 算法微服务）。任何契约变更须先改本文件并通知其他两方。
-> 拍板决策：若依 Java 底座 + Python 算法微服务 ｜ 单机 docker-compose 演示版 ｜ GeoJSON 零瓦片底图 ｜ PolyForm Noncommercial 1.0.0
+> v1（调度单优化版）已被 v2 取代。v2 依据工作流重调研与用户确认的四项决策：
+> ①算法自动派单+人工可撤 ②两级派发（算法/调度→片长→船/人） ③研判=同比外推+省预案阈值规则 ④打捞员端=H5。
+> 三端单一事实源：be-ruoyi（Java 工单后端）、fe-admin（管理台+H5）、be-python（研判引擎与算法服务）。变更先改本文件。
 
-## 1. 部署拓扑（docker-compose 服务）
+## 1. 工作流总图
 
-| 服务 | 端口 | 说明 |
-|---|---|---|
-| mysql | 3306（内部） | 库名 `ry-vue`，字符集 utf8mb4；若依自带表 + 业务表（§2） |
-| redis | 6379（内部） | 若依缓存 |
-| ruoyi-admin | 8080（内部） | Java 后端（若依 + taihu 业务模块） |
-| algo | 9100（内部） | Python FastAPI 算法服务（无鉴权，仅 compose 内网可达） |
-| nginx | 8090 → 宿主 | 托管 RuoYi-Vue3 构建产物 + 反代 `/prod-api/` → ruoyi-admin |
-
-前端所有业务请求统一走若依后端（JWT 鉴权），**前端不直连 algo**；若依后端代理调用 algo（`ALGO_BASE=http://algo:9100` 环境变量）。
-
-## 2. 业务表（建在 `ry-vue` 库，前缀 tz_；均带若依审计字段 create_by/create_time/update_by/update_time/remark）
-
-```sql
--- 分区（太湖六分区，boundary 为 GeoJSON Polygon 坐标数组的 JSON 串）
-CREATE TABLE tz_zone (
-  zone_id   BIGINT PRIMARY KEY AUTO_INCREMENT,
-  zone_name VARCHAR(50) NOT NULL UNIQUE COMMENT '分区名',
-  zone_code VARCHAR(20) COMMENT '代码 MLW/ZSH/GH/HX/XBAY/NBAY',
-  area_km2  DECIMAL(8,2),
-  boundary  JSON COMMENT '[[lng,lat],...] 外环',
-  prob_72h  DECIMAL(5,2) COMMENT '72h水华概率0-1',
-  tons_q25  DECIMAL(10,2), tons_q50 DECIMAL(10,2) COMMENT '预计可收藻(吨/日)',
-  chla      DECIMAL(7,2) COMMENT '当前Chl-a ug/L',
-  update_time DATETIME
-) COMMENT='打捞分区';
-
--- 船只
-CREATE TABLE tz_boat (
-  boat_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  boat_name VARCHAR(50) NOT NULL, boat_type VARCHAR(20) COMMENT '打捞/机动/小型',
-  capacity_t DECIMAL(8,2) COMMENT '吨/日', speed_kmh DECIMAL(5,1), fuel_l_km DECIMAL(5,2),
-  status CHAR(1) DEFAULT '0' COMMENT '0可用 1维护', home_port VARCHAR(50)
-) COMMENT='打捞船只';
-
--- 藻水分离站
-CREATE TABLE tz_station (
-  station_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  station_name VARCHAR(50) NOT NULL, capacity_t_day DECIMAL(8,2), status CHAR(1) DEFAULT '0'
-) COMMENT='藻水分离站';
-
--- 调度单（状态机：0待确认 →1已确认 →3已完成；0→2已驳回；1→0可改派回退）
-CREATE TABLE tz_dispatch_order (
-  order_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  order_date DATE NOT NULL, half_day CHAR(1) NOT NULL COMMENT '0上午 1下午',
-  boat_id BIGINT NOT NULL, zone_id BIGINT NOT NULL, station_id BIGINT,
-  plan_tons DECIMAL(8,2) COMMENT '建议预计收藻',
-  actual_tons DECIMAL(8,2) COMMENT '完成时回填',
-  status CHAR(1) DEFAULT '0',
-  solver VARCHAR(20) COMMENT 'CP_SAT/GREEDY',
-  objective DECIMAL(12,2), model_version VARCHAR(40), run_id BIGINT,
-  create_by VARCHAR(64) DEFAULT '', create_time DATETIME,
-  update_by VARCHAR(64) DEFAULT '', update_time DATETIME, remark VARCHAR(200)
-) COMMENT='调度单';
-
--- 打捞台账（全系统唯一人工录入点：从调度单带出，现场只补实收数）
-CREATE TABLE tz_salvage_log (
-  log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  order_id BIGINT COMMENT '关联调度单(可空=计划外)',
-  boat_id BIGINT NOT NULL, zone_id BIGINT NOT NULL,
-  log_date DATE NOT NULL, half_day CHAR(1),
-  actual_tons DECIMAL(8,2) NOT NULL, fuel_liters DECIMAL(8,1), crew INT,
-  photo_url VARCHAR(200), lng DECIMAL(10,6), lat DECIMAL(10,6),
-  create_by VARCHAR(64) DEFAULT '', create_time DATETIME,
-  update_by VARCHAR(64) DEFAULT '', update_time DATETIME, remark VARCHAR(200)
-) COMMENT='打捞台账';
-
--- 预报记录（供复盘与看板）
-CREATE TABLE tz_forecast_record (
-  fc_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  zone_id BIGINT NOT NULL, fc_date DATE NOT NULL, horizon_h INT DEFAULT 72,
-  prob DECIMAL(5,2), chla_q25 DECIMAL(7,2), chla_q50 DECIMAL(7,2), chla_q75 DECIMAL(7,2),
-  create_time DATETIME
-) COMMENT='预报记录';
-
--- 管线运行（审计：run_id 贯穿调度单）
-CREATE TABLE tz_run (
-  run_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  run_date DATE NOT NULL, step VARCHAR(30) COMMENT 'ingest/forecast/solve/report',
-  status CHAR(1) COMMENT '0运行 1成功 2失败',
-  started_at DATETIME, ended_at DATETIME, model_version VARCHAR(40), detail TEXT
-) COMMENT='管线运行';
+```
+数据接入(遥感/浮标预留/巡测/气象)
+  → 研判引擎 = 同比外推+阈值规则(定干预等级,决策主线) ⊕ 概率预报(72h,并列展示第二意见) → tz_assessment
+  → 自动派单：level≥dispatch.auto_level → 自动建工单(status=0 待接单, 派给片长)
+    并附 CP-SAT 推荐派船方案(suggest_boats 预填,片长接单可改)；level=关注 → 只进研判面板
+  → 片长(H5)接单 → 确认/调整派船+打捞员 → status=1 已接单
+  → 打捞员(H5)到场打卡 → status=2 进行中
+  → 提交完成(藻水吨+照片) → status=3 待核查
+  → 调度/核查员核查 → status=4 已办结（不合格 → status=5 已退回，整改重报回 3）
+  → 全程可撤销：status=6 已撤销（待接单/已接单状态，人工可撤，必填原因）
+  → 超时督办（不是状态，是计时器动作）：催办→改派→升级督办，记 tz_order_log
 ```
 
-## 3. algo-service API（FastAPI，http://algo:9100，前缀 /api/v1，无鉴权）
+## 2. 数据表（ry-vue 库；新增/改造，前缀 tz_）
 
-| 方法 | 路径 | 入参 | 出参 |
-|---|---|---|---|
-| GET | /healthz | - | {"status":"ok"} |
-| POST | /seed | ?days=120 | 重置并生成演示数据（分区/船/站/历史台账/预报/今日调度单），返回统计 |
-| POST | /pipeline/run-daily | ?date=YYYY-MM-DD（缺省今天） | 跑当日管线 ingest→forecast→solve→report，返回各步 run 记录 |
-| POST | /solve | ?date&half_day=0&quantile=q50 | CP-SAT（超时 30s 演示口径）求解并写入调度单，返回 {orders, objective, solver} |
-| GET | /zones/geojson | - | FeatureCollection：geometry=Polygon(boundary)，properties={zone_id,zone_name,prob_72h,tons_q50,chla} |
-| GET | /dashboard/eval | ?days=30 | {kpi:{POD,FAR,CSI}, daily:[{date,plan_tons,actual_tons,abs_dev}], zone_stats:[...]} |
-| GET | /history/series | ?days=90 | {dates[], zones{zone_name: chla[]}}（看板趋势用） |
+**保留 v1**：tz_zone（去掉预报字段含义变化：prob_72h 改为研判等级冗余，可保留）、tz_boat、tz_station、tz_run。
+**废弃 v1**：tz_dispatch_order、tz_salvage_log、tz_forecast_record（数据清空，模块下线）。
+**algo 内部表（v2 新增，algo-service 建表自管，RuoYi 侧无需建表/不读写）**：tz_chla_obs（zone_id+obs_date 唯一，chla DECIMAL）——逐日分区 Chl-a 实测/合成序列，是同比外推、回验准确率与 autotune 回测的**事实底座**；seed 写入两年合成史（以昨日结尾），pipeline ingest 逐日追加。另：tz_assessment.basis 内同步携带概率预报第二意见（prob/q25/q50/q75 与其 model_version）。
 
-- 数据库连接：环境变量 `TZ_DB_URL=mysql+pymysql://root:password@mysql:3306/ry-vue?charset=utf8mb4`
-- 算法底座：vendored `algo-service/taihu_toolkit/`（来自 MIT 库 taihu-bloom-toolkit，保留其 LICENSE 注记）；求解：CP-SAT（ortools）+ 贪心降级
-- 调度求解口径：与 taihu-bloom-toolkit/dispatch.py 同构（船容量×作业时长折减 − 航行油成本；分区可收量扣减；分离站产能；重点分区贡湖保底一艘）
+```sql
+-- 人员（片长/打捞员）
+CREATE TABLE tz_worker (
+  worker_id BIGINT PK AI, worker_name VARCHAR(50) NOT NULL,
+  role CHAR(1) NOT NULL COMMENT '1片长 2打捞员(船长)',
+  phone VARCHAR(20), zone_id BIGINT COMMENT '负责分区(片长)',
+  team_name VARCHAR(50) COMMENT '所属队伍/班组',
+  username VARCHAR(64) COMMENT '关联sys_user登录名(H5登录)',
+  status CHAR(1) DEFAULT '0', 审计字段
+) COMMENT='作业人员';
 
-## 4. RuoYi 后端业务接口（Java，挂 `/taihu`，若依 JWT/权限体系）
+-- 工单（核心表，两级派发）
+CREATE TABLE tz_work_order (
+  order_id BIGINT PK AI, order_no VARCHAR(32) NOT NULL UNIQUE COMMENT 'TZ20261014-0001',
+  zone_id BIGINT NOT NULL, level CHAR(1) NOT NULL COMMENT '藻情等级 1关注 2较大 3重大(对齐省预案一般/较大/重大)',
+  source CHAR(1) DEFAULT '1' COMMENT '1算法自动 2人工创建',
+  assessment_id BIGINT COMMENT '来源研判记录',
+  status CHAR(1) DEFAULT '0' COMMENT '0待接单 1已接单 2进行中 3待核查 4已办结 5已退回 6已撤销',
+  leader_id BIGINT COMMENT '片长(首派对象)',
+  boat_id BIGINT COMMENT '片长接单时指定',
+  crew_ids VARCHAR(200) COMMENT '打捞员工号逗号分隔',
+  deadline DATETIME COMMENT '处置时限(自动派单时按 level 定)',
+  dispatched_at DATETIME, accepted_at DATETIME, arrived_at DATETIME,
+  submitted_at DATETIME, checked_at DATETIME,
+  actual_tons DECIMAL(8,2) COMMENT '藻水湿重吨(完成时报)',
+  photo_urls VARCHAR(500), arrive_lng DECIMAL(10,6), arrive_lat DECIMAL(10,6),
+  suggest_boats JSON COMMENT 'CP-SAT推荐派船方案[{boat_id,zone_id,tons}]，片长接单预填可改',
+  revoke_reason VARCHAR(200) COMMENT '撤销原因', check_comment VARCHAR(200),
+  model_version VARCHAR(40), param_version INT,
+  审计字段
+) COMMENT='打捞工单';
+
+-- 工单流转日志（督办动作也记这：action=催办/改派/升级督办）
+CREATE TABLE tz_order_log (
+  log_id BIGINT PK AI, order_id BIGINT NOT NULL,
+  action VARCHAR(30) COMMENT '派单/接单/派船/到场/提交/核查/办结/退回/撤销/催办/改派/升级督办',
+  operator VARCHAR(64), from_status CHAR(1), to_status CHAR(1),
+  note VARCHAR(300), created_at DATETIME
+) COMMENT='工单流转日志';
+
+-- 研判记录（算法结论与依据）
+CREATE TABLE tz_assessment (
+  assessment_id BIGINT PK AI, assess_date DATE NOT NULL, zone_id BIGINT NOT NULL,
+  level CHAR(1) COMMENT '0无需干预 1关注 2较大(建议打捞) 3重大(应急)',
+  predicted DECIMAL(7,2) COMMENT '同比外推预测Chl-a', yoy DECIMAL(7,2) COMMENT '去年同期值',
+  recent7 DECIMAL(7,2) COMMENT '近7日均值', trend DECIMAL(6,2) COMMENT '近7日趋势%',
+  basis JSON COMMENT '依据明细{阈值引用/超阈天数/同比偏差/参数快照key值}',
+  confidence DECIMAL(4,2), model_version VARCHAR(40), param_version INT,
+  created_at DATETIME
+) COMMENT='研判记录';
+
+-- 算法参数注册表（AI 动态调参的接口位）
+CREATE TABLE tz_algo_param (
+  param_id BIGINT PK AI, param_key VARCHAR(64) NOT NULL UNIQUE,
+  param_value DECIMAL(12,4) NOT NULL, min_value DECIMAL(12,4), max_value DECIMAL(12,4),
+  unit VARCHAR(20), meaning VARCHAR(200) COMMENT '业务含义',
+  updated_by VARCHAR(64), updated_at DATETIME, version INT DEFAULT 1
+) COMMENT='算法参数注册表(调整走API+审计+版本递增)';
+```
+
+**初始参数集**（seed 写入，key 区分大小写）：
+| param_key | 默认值 | 含义 |
+|---|---|---|
+| assess.level1_chla | 20 | 关注阈值 μg/L（省预案一般档叶绿素a） |
+| assess.level2_chla | 50 | 较大阈值（省预案较大档） |
+| assess.level3_chla | 80 | 重大阈值（省预案重大档） |
+| assess.yoy_halfwin | 7 | 同比窗口：去年同期±N 天 |
+| assess.yoy_weight | 0.6 | 同比基线权重（近 7 日趋势占 0.4） |
+| assess.exceed_days | 3 | 近 N 日超阈天数计入升级 |
+| dispatch.auto_level | 2 | 达到该等级及以上自动派单（2=较大） |
+| dispatch.deadline_h_l2 | 24 | 较大等级处置时限（小时） |
+| dispatch.deadline_h_l3 | 4 | 重大等级处置时限（小时） |
+| supervise.remind_h | 2 | 超时多久开始催办（小时） |
+| supervise.escalate_h | 6 | 催办多久未动升级督办（小时） |
+| autotune.enabled | 1 | 自动调参开关（1开 0关） |
+| autotune.mode | 2 | 1=建议(人工确认后生效) 2=自动(区间内直接生效) |
+| autotune.window_days | 30 | 回看窗口（天） |
+| autotune.max_step_pct | 10 | 单次调整最大幅度（当前值百分比） |
+| autotune.min_gain | 2 | 最小改进阈值（命中率百分点，低于不调） |
+
+-- 参数变更审计（人工调整与自动调参共用）
+CREATE TABLE tz_param_log (
+  log_id BIGINT PK AI, param_key VARCHAR(64) NOT NULL,
+  old_value DECIMAL(12,4), new_value DECIMAL(12,4),
+  old_version INT, new_version INT,
+  trigger CHAR(1) COMMENT '1人工 2自动调参 3自动建议待确认',
+  evidence JSON COMMENT '证据{窗口命中率/POD/FAR/MAE, 候选对比, 调整理由}',
+  operator VARCHAR(64), created_at DATETIME
+) COMMENT='参数变更审计';
+
+## 3. algo-service API（http://algo:9100/api/v1，无鉴权）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | /taihu/orders | 分页：date/status/halfDay 过滤；联表返回 boat_name/zone_name/station_name |
-| PUT | /taihu/orders/{id}/confirm | 待确认→已确认（记操作人） |
-| PUT | /taihu/orders/{id}/reject | 待确认→已驳回（remark 必填驳回原因） |
-| PUT | /taihu/orders/{id}/done | 已确认→已完成（body.actualTons 选填，缺省取台账汇总） |
-| GET | /taihu/zones ｜ /taihu/boats ｜ /taihu/stations | 台账 CRUD（列表+新增+改+删，若依标准风格） |
-| GET/POST/PUT/DELETE | /taihu/logs… | 打捞台账 CRUD；POST 支持带 orderId（自动带出船/分区/日期） |
-| GET | /taihu/geojson | 代理 algo /zones/geojson |
-| GET | /taihu/dashboard | 代理 algo /dashboard/eval 与 /history/series 合并返回 |
-| POST | /taihu/pipeline/run | 代理 algo /pipeline/run-daily（仅管理员，@PreAuthorize hasPermi('taihu:pipeline:run')） |
-| POST | /taihu/seed | 代理 algo /seed（仅管理员，演示重置用） |
+| GET | /healthz | 存活 |
+| POST | /seed?days=730 | 重置演示数据：两年合成史（保证"去年同期"存在）、人员/船/站/分区、历史工单与研判、今日研判+按 dispatch.auto_level 自动建单 |
+| POST | /pipeline/run-daily?date= | ingest→assess（同比外推定级+概率预报并列）→auto-dispatch（达标自动建工单+CP-SAT推荐派船方案）→report→**autotune**（自我改进步：回测→有界调参→明日研判生效），各步写 tz_run |
+| GET | /assess/today | 今日六分区研判结论：同比外推定级+basis明细 与 概率预报(prob/q25/q50/q75) 并列返回，含参数与模型版本 |
+| GET | /assess/accuracy?days=30 | 研判回验：预测等级 vs 次日实际（合成事实），输出命中/误报/漏报 |
+| GET | /params ｜ PUT /params/{key} | 参数注册表读取/修改（body: value, operator）→ 写库+版本递增+tz_param_log(trigger=1)；修改后下一轮研判生效 |
+| GET | /autotune/history ｜ POST /autotune/run | 自动调参：run=对近 autotune.window_days 天研判 vs 实际做回测，对 {yoy_weight, level1/2/3_chla} 在 min/max 与 max_step_pct 约束内做有界候选搜索，改进≥min_gain 则按 mode 生效（写 tz_param_log trigger=2/3+evidence）；history=参数值与命中率随时间曲线（含每次调整证据） |
+| GET | /dashboard/eval?days=30 | 考核看板：响应时长分布（派单→接单/到场/办结）、办结率、超时督办次数、日生日清率、各分区吨数 |
+| GET | /daily/report?date= | 日报数据：当日工单汇总+吨数+未办结清单（对齐水利局逐日上报口径） |
+| GET | /zones/geojson | 同 v1，properties 增加 level（当日研判等级，地图色阶改用等级） |
 
-菜单 SQL：一级目录「太湖调度」(taihu)：调度工作台(workbench 页面)、调度单(orders)、打捞台账(logs)、船只(boats)、分区(zones)、分离站(stations)、运行看板(dashboard)；权限字符 taihu:order:list/confirm/reject、taihu:log:*、taihu:pipeline:run 等；演示种子给 admin 全量权限。
+**同比外推引擎口径**（be-python 实现）：
+预测值 = yoy_weight × 去年同期均值(±yoy_halfwin) + (1−yoy_weight) × 近7日均值 × (1+trend/100 修正)；等级按 predicted 对照 level1/2/3_chla，且近 exceed_days 日超阈则升级一档；无去年数据时回落为"近7日均值+阈值"并标注 basis.degraded=true。所有用到的参数值快照进 basis。
 
-## 5. 前端页面（RuoYi-Vue3，src/views/taihu/）
+## 4. RuoYi 后端业务接口（/taihu/**，JWT）
 
-1. **workbench/index.vue 调度工作台**：左 Leaflet 地图（GeoJSON 分区面，色阶=prob_72h，弹窗=分区信息）+ 右调度单卡片列表（按状态 tab：待确认/已确认/已完成/已驳回；卡片操作：确认/驳回/完成）；顶栏「生成今日调度单」（调 /taihu/pipeline/run）与「重置演示数据」（/taihu/seed，二次确认）。地图零瓦片：纯色底+分区面+岸线示意（boundary 自带），不用任何外部瓦片。
-2. **orders/index.vue**：若依标准表格页（日期/状态筛选+行操作），可并入工作台 tab，但独立保留便于管理。
-3. **logs/index.vue**：台账列表 + 「回填」对话框：选日期→未回填调度单下拉（选中带出船/分区），只填 实收吨数(必填)/油耗/人数/备注 → 提交一次完成。
-4. **dashboard/index.vue**：ECharts——POD/FAR/CSI 三卡片、计划vs实收与偏差折线、分区收藻柱状、Chl-a 趋势（/taihu/dashboard）。
-5. 样式遵循 RuoYi-Vue3 现有 Element Plus 风格；不新增重型依赖（Leaflet 与 echarts 若依已带 echarts；Leaflet 需 npm add，BSD-2）。
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /taihu/orders/list | 工单分页（date/zone/level/status 过滤，联表 zone_name/leader_name/boat_name） |
+| PUT | /taihu/orders/{id}/revoke | 撤销（status∈{0,1}，body.revokeReason 必填）→ 6 |
+| PUT | /taihu/orders/{id}/reassign | 改派（body: leaderId）→ 回 0，记日志 |
+| PUT | /taihu/orders/{id}/check | 核查（status=3 → body.pass=true→4 / false→5+checkComment） |
+| POST | /taihu/orders | 人工创建工单（source=2） |
+| GET/POST/PUT/DELETE | /taihu/workers… | 人员管理（片长/打捞员，绑定分区） |
+| 保留 | /taihu/zones /boats /stations | 台账 CRUD 同 v1 |
+| GET | /taihu/assess/today ｜ /taihu/assess/accuracy | 代理 algo |
+| GET/PUT | /taihu/params ｜ /taihu/params/{key} | 代理 algo（PUT 挂管理员权限 taihu:param:edit） |
+| GET/POST | /taihu/autotune/history ｜ /taihu/autotune/run | 代理 algo（run 挂 taihu:param:edit） |
+| GET | /taihu/dashboard ｜ /taihu/daily/report | 代理 algo |
+| POST | /taihu/pipeline/run ｜ /taihu/seed | 代理 algo（taihu:pipeline:run） |
+| **H5 接口（免动态菜单，仍走 JWT；演示账号用 taihu/admin123）** | | |
+| POST | /h5/login | H5 登录（username/password → 复用若依 login，返回 token+角色） |
+| GET | /h5/my/orders?status= | 我的工单（片长=派给我的；打捞员=crew_ids 含我） |
+| PUT | /h5/orders/{id}/accept | 片长接单（body: boatId, crewIds 必填）→ 1 |
+| PUT | /h5/orders/{id}/arrive | 到场打卡（body: lng, lat）→ 2 |
+| PUT | /h5/orders/{id}/submit | 提交完成（body: actualTons 必填, photoUrls 选填）→ 3 |
+| GET | /h5/me | 当前用户信息+角色 |
 
-## 6. 许可证与署名
+超时督办：后端 @Scheduled 每 10 分钟扫 status∈{0,1,2,3} 且超 supervise 阈值的工单 → 写 tz_order_log（催办/升级督办）+ 状态不變；催办超 escalate_h 仍无动作且 status=0 → 自动改派（轮转到同分区其他片长，无则升级督办）。
 
-- 本仓库根 LICENSE = PolyForm Noncommercial 1.0.0；README 附"仅供个人研究学习，禁止商业使用"声明。
-- vendored 若依（RuoYi-Vue / RuoYi-Vue3，MIT）：保留其 LICENSE 文件于 ruoyi-backend/LICENSE、ruoyi-ui/LICENSE，README 致谢。
-- algo-service vendored taihu_toolkit（MIT，来源 wi1d1337/taihu-bloom-toolkit）：保留源仓库注记。
+菜单调整：太湖调度目录下改为——调度工作台(研判+工单总览)、工单管理、研判面板、算法参数、作业人员、分区、船只、分离站、考核看板、日报；v1 的"调度单/打捞台账"菜单删除。
+
+## 5. 前端页面（RuoYi-Vue3 + H5）
+
+**管理台**（src/views/taihu/）：
+1. workbench/index.vue：上半部研判面板（六分区卡片：等级色块/预测值/同比/趋势/超阈天数/参数版本+今日准确度），下半部今日工单列表（状态 tab、撤销/改派/核查操作）；顶栏【运行今日研判】（pipeline/run）【重置演示数据】。
+2. orders/index.vue：全量工单管理（筛选+详情抽屉含流转时间线 tz_order_log+核查/撤销/改派）。
+3. assess/index.vue：研判历史与回验准确度（趋势图+命中矩阵）。
+4. params/index.vue：算法参数表（key/当前值/区间/含义/更新人/版本，行内编辑弹窗，保存调 PUT）——"算法痕迹"核心页；页内"自动调参"区块：开关/模式（建议·自动）展示、【立即调参】按钮（POST /taihu/autotune/run）、参数值与命中率随时间曲线（/taihu/autotune/history）、每次调整的证据列表（前后值/窗口指标/理由，人工调整与自动调整同列）。
+5. workers/boats/zones/stations：CRUD（workers 新增）。
+6. dashboard/index.vue：考核看板（响应时长分布/办结率/日生日清/超时督办数/分区吨数柱状）。
+7. daily/index.vue：日报页（按日期查询，汇总表+未办结清单，导出 Excel 按钮用若依 download）。
+
+**H5**（src/views/h5/，独立路由 /h5 不走管理台布局，移动端样式）：
+- h5/login.vue（账号密码）
+- h5/orders.vue：我的工单卡片列表（状态筛选；片长卡=接单按钮→弹层选船+选打捞员；打捞员卡=到场打卡/提交完成表单[吨数+照片上传]）
+- H5 判定：登录后 GET /h5/me 按角色渲染（片长看到接单操作；打捞员看到打卡/提交）
+- 照片上传复用若依 /common/upload，多图逗号拼 photo_urls
+
+## 6. e2e v2 场景（scripts/e2e.sh 重写）
+
+登录管理台 → seed(730天) → pipeline/run（研判+自动派单）→ 查今日研判（/taihu/assess/today）→ 若有 level≥2 工单则：H5 登录片长 → 接单(派船派人) → H5 登录打捞员 → 到场打卡 → 提交完成(吨数+照片占位) → 管理台核查办结 → PUT 参数（把 level2 阈值改 60）→ 再跑一次研判验证参数生效（等级变化）→ 看板与日报取数。全程断言状态流转与考核指标非空。
+
+## 7. 兼容与迁移
+
+- sql/taihu.sql 重写（v2 表结构+菜单+演示账号 taihu 片长/打捞员各一名：leader01/worker01 密码 admin123）。
+- algo-service：v1 的 forecast/solve/seed 模块下线或改造；新增 assess.py(同比外推)、params.py、workorder 桥（直接写 tz_work_order）。
+- 前端 v1 的 orders(调度单)/logs 页面删除替换。

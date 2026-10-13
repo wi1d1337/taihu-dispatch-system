@@ -77,6 +77,25 @@ export const constantRoutes = [
     meta: { title: '锁定屏幕' }
   },
   {
+    // H5 移动端（片长/打捞员）：独立布局，不走管理台，配合 permission.js 白名单
+    path: '/h5',
+    hidden: true,
+    children: [
+      {
+        path: 'login',
+        component: () => import('@/views/h5/login'),
+        name: 'H5Login',
+        meta: { title: '作业端登录' }
+      },
+      {
+        path: 'orders',
+        component: () => import('@/views/h5/orders'),
+        name: 'H5Orders',
+        meta: { title: '我的工单' }
+      }
+    ]
+  },
+  {
     path: '/user',
     component: Layout,
     hidden: true,

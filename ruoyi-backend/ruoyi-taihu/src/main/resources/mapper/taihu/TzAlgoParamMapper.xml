@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzAlgoParamMapper">
+
+    <resultMap type="TzAlgoParam" id="TzAlgoParamResult">
+        <id     property="paramId"    column="param_id"    />
+        <result property="paramKey"   column="param_key"   />
+        <result property="paramValue" column="param_value" />
+        <result property="minValue"   column="min_value"   />
+        <result property="maxValue"   column="max_value"   />
+        <result property="unit"       column="unit"        />
+        <result property="meaning"    column="meaning"     />
+        <result property="updatedBy"  column="updated_by"  />
+        <result property="updatedAt"  column="updated_at"  />
+        <result property="version"    column="version"     />
+    </resultMap>
+
+    <select id="selectParamList" parameterType="TzAlgoParam" resultMap="TzAlgoParamResult">
+        select param_id, param_key, param_value, min_value, max_value, unit, meaning, updated_by, updated_at, version
+        from tz_algo_param
+        <where>
+            <if test="paramKey != null and paramKey != ''">
+                and param_key like concat('%', #{paramKey}, '%')
+            </if>
+        </where>
+        order by param_id
+    </select>
+
+    <select id="selectParamByKey" parameterType="String" resultMap="TzAlgoParamResult">
+        select param_id, param_key, param_value, min_value, max_value, unit, meaning, updated_by, updated_at, version
+        from tz_algo_param
+        where param_key = #{paramKey}
+    </select>
+</mapper>
