@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzSalvageLogMapper">
+
+    <resultMap type="TzSalvageLog" id="TzSalvageLogResult">
+        <id     property="logId"      column="log_id"      />
+        <result property="orderId"    column="order_id"    />
+        <result property="boatId"     column="boat_id"     />
+        <result property="zoneId"     column="zone_id"     />
+        <result property="logDate"    column="log_date"    />
+        <result property="halfDay"    column="half_day"    />
+        <result property="actualTons" column="actual_tons" />
+        <result property="fuelLiters" column="fuel_liters" />
+        <result property="crew"       column="crew"        />
+        <result property="photoUrl"   column="photo_url"   />
+        <result property="lng"        column="lng"         />
+        <result property="lat"        column="lat"         />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"      />
+        <result property="boatName"   column="boat_name"   />
+        <result property="zoneName"   column="zone_name"   />
+    </resultMap>
+
+    <sql id="selectTzSalvageLogVo">
+        select l.log_id, l.order_id, l.boat_id, l.zone_id, l.log_date, l.half_day, l.actual_tons, l.fuel_liters,
+               l.crew, l.photo_url, l.lng, l.lat,
+               l.create_by, l.create_time, l.update_by, l.update_time, l.remark,
+               b.boat_name, z.zone_name
+        from tz_salvage_log l
+        left join tz_boat b on l.boat_id = b.boat_id
+        left join tz_zone z on l.zone_id = z.zone_id
+    </sql>
+
+    <select id="selectSalvageLogList" parameterType="TzSalvageLog" resultMap="TzSalvageLogResult">
+        <include refid="selectTzSalvageLogVo"/>
+        <where>
+            <if test="orderId != null">
+                and l.order_id = #{orderId}
+            </if>
+            <if test="boatId != null">
+                and l.boat_id = #{boatId}
+            </if>
+            <if test="zoneId != null">
+                and l.zone_id = #{zoneId}
+            </if>
+            <if test="logDate != null">
+                and date(l.log_date) = date(#{logDate})
+            </if>
+            <if test="halfDay != null and halfDay != ''">
+                and l.half_day = #{halfDay}
+            </if>
+            <if test="params.beginLogDate != null and params.beginLogDate != ''">
+                and date(l.log_date) &gt;= #{params.beginLogDate}
+            </if>
+            <if test="params.endLogDate != null and params.endLogDate != ''">
+                and date(l.log_date) &lt;= #{params.endLogDate}
+            </if>
+        </where>
+        order by l.log_date desc, l.log_id desc
+    </select>
+
+    <select id="selectSalvageLogById" parameterType="Long" resultMap="TzSalvageLogResult">
+        <include refid="selectTzSalvageLogVo"/>
+        where l.log_id = #{logId}
+    </select>
+
+    <insert id="insertSalvageLog" parameterType="TzSalvageLog" useGeneratedKeys="true" keyProperty="logId">
+        insert into tz_salvage_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderId != null">order_id,</if>
+            <if test="boatId != null">boat_id,</if>
+            <if test="zoneId != null">zone_id,</if>
+            <if test="logDate != null">log_date,</if>
+            <if test="halfDay != null and halfDay != ''">half_day,</if>
+            <if test="actualTons != null">actual_tons,</if>
+            <if test="fuelLiters != null">fuel_liters,</if>
+            <if test="crew != null">crew,</if>
+            <if test="photoUrl != null">photo_url,</if>
+            <if test="lng != null">lng,</if>
+            <if test="lat != null">lat,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderId != null">#{orderId},</if>
+            <if test="boatId != null">#{boatId},</if>
+            <if test="zoneId != null">#{zoneId},</if>
+            <if test="logDate != null">#{logDate},</if>
+            <if test="halfDay != null and halfDay != ''">#{halfDay},</if>
+            <if test="actualTons != null">#{actualTons},</if>
+            <if test="fuelLiters != null">#{fuelLiters},</if>
+            <if test="crew != null">#{crew},</if>
+            <if test="photoUrl != null">#{photoUrl},</if>
+            <if test="lng != null">#{lng},</if>
+            <if test="lat != null">#{lat},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateSalvageLog" parameterType="TzSalvageLog">
+        update tz_salvage_log
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderId != null">order_id = #{orderId},</if>
+            <if test="boatId != null">boat_id = #{boatId},</if>
+            <if test="zoneId != null">zone_id = #{zoneId},</if>
+            <if test="logDate != null">log_date = #{logDate},</if>
+            <if test="halfDay != null and halfDay != ''">half_day = #{halfDay},</if>
+            <if test="actualTons != null">actual_tons = #{actualTons},</if>
+            <if test="fuelLiters != null">fuel_liters = #{fuelLiters},</if>
+            <if test="crew != null">crew = #{crew},</if>
+            <if test="photoUrl != null">photo_url = #{photoUrl},</if>
+            <if test="lng != null">lng = #{lng},</if>
+            <if test="lat != null">lat = #{lat},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where log_id = #{logId}
+    </update>
+
+    <delete id="deleteSalvageLogById" parameterType="Long">
+        delete from tz_salvage_log where log_id = #{logId}
+    </delete>
+
+    <delete id="deleteSalvageLogByIds" parameterType="String">
+        delete from tz_salvage_log where log_id in
+        <foreach collection="array" item="logId" open="(" separator="," close=")">
+            #{logId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzStationMapper">
+
+    <resultMap type="TzStation" id="TzStationResult">
+        <id     property="stationId"    column="station_id"     />
+        <result property="stationName"  column="station_name"   />
+        <result property="capacityTDay" column="capacity_t_day" />
+        <result property="status"       column="status"         />
+        <result property="createBy"     column="create_by"      />
+        <result property="createTime"   column="create_time"    />
+        <result property="updateBy"     column="update_by"      />
+        <result property="updateTime"   column="update_time"    />
+        <result property="remark"       column="remark"         />
+    </resultMap>
+
+    <sql id="selectTzStationVo">
+        select station_id, station_name, capacity_t_day, status, create_by, create_time, update_by, update_time, remark from tz_station
+    </sql>
+
+    <select id="selectStationList" parameterType="TzStation" resultMap="TzStationResult">
+        <include refid="selectTzStationVo"/>
+        <where>
+            <if test="stationName != null and stationName != ''">
+                and station_name like concat('%', #{stationName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by station_id
+    </select>
+
+    <select id="selectStationById" parameterType="Long" resultMap="TzStationResult">
+        <include refid="selectTzStationVo"/>
+        where station_id = #{stationId}
+    </select>
+
+    <insert id="insertStation" parameterType="TzStation" useGeneratedKeys="true" keyProperty="stationId">
+        insert into tz_station
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="stationName != null and stationName != ''">station_name,</if>
+            <if test="capacityTDay != null">capacity_t_day,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="stationName != null and stationName != ''">#{stationName},</if>
+            <if test="capacityTDay != null">#{capacityTDay},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateStation" parameterType="TzStation">
+        update tz_station
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="stationName != null and stationName != ''">station_name = #{stationName},</if>
+            <if test="capacityTDay != null">capacity_t_day = #{capacityTDay},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where station_id = #{stationId}
+    </update>
+
+    <delete id="deleteStationById" parameterType="Long">
+        delete from tz_station where station_id = #{stationId}
+    </delete>
+
+    <delete id="deleteStationByIds" parameterType="String">
+        delete from tz_station where station_id in
+        <foreach collection="array" item="stationId" open="(" separator="," close=")">
+            #{stationId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,28 @@
+# 依赖与构建产物
+node_modules/
+dist/
+target/
+*.class
+*.jar
+!ruoyi-backend/bin/*.jar
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 环境与运行时
+.env
+logs/
+*.log
+mysql-data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# 临时
+docs/polyform_raw.html
+docs/pf_resp.json

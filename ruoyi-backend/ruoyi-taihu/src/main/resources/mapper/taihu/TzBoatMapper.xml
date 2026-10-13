@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzBoatMapper">
+
+    <resultMap type="TzBoat" id="TzBoatResult">
+        <id     property="boatId"    column="boat_id"    />
+        <result property="boatName"  column="boat_name"  />
+        <result property="boatType"  column="boat_type"  />
+        <result property="capacityT" column="capacity_t" />
+        <result property="speedKmh"  column="speed_kmh"  />
+        <result property="fuelLkm"   column="fuel_l_km"  />
+        <result property="status"    column="status"     />
+        <result property="homePort"  column="home_port"  />
+        <result property="createBy"  column="create_by"  />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"  column="update_by"  />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"    column="remark"     />
+    </resultMap>
+
+    <sql id="selectTzBoatVo">
+        select boat_id, boat_name, boat_type, capacity_t, speed_kmh, fuel_l_km, status, home_port, create_by, create_time, update_by, update_time, remark from tz_boat
+    </sql>
+
+    <select id="selectBoatList" parameterType="TzBoat" resultMap="TzBoatResult">
+        <include refid="selectTzBoatVo"/>
+        <where>
+            <if test="boatName != null and boatName != ''">
+                and boat_name like concat('%', #{boatName}, '%')
+            </if>
+            <if test="boatType != null and boatType != ''">
+                and boat_type = #{boatType}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="homePort != null and homePort != ''">
+                and home_port like concat('%', #{homePort}, '%')
+            </if>
+        </where>
+        order by boat_id
+    </select>
+
+    <select id="selectBoatById" parameterType="Long" resultMap="TzBoatResult">
+        <include refid="selectTzBoatVo"/>
+        where boat_id = #{boatId}
+    </select>
+
+    <insert id="insertBoat" parameterType="TzBoat" useGeneratedKeys="true" keyProperty="boatId">
+        insert into tz_boat
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="boatName != null and boatName != ''">boat_name,</if>
+            <if test="boatType != null">boat_type,</if>
+            <if test="capacityT != null">capacity_t,</if>
+            <if test="speedKmh != null">speed_kmh,</if>
+            <if test="fuelLkm != null">fuel_l_km,</if>
+            <if test="status != null">status,</if>
+            <if test="homePort != null">home_port,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="boatName != null and boatName != ''">#{boatName},</if>
+            <if test="boatType != null">#{boatType},</if>
+            <if test="capacityT != null">#{capacityT},</if>
+            <if test="speedKmh != null">#{speedKmh},</if>
+            <if test="fuelLkm != null">#{fuelLkm},</if>
+            <if test="status != null">#{status},</if>
+            <if test="homePort != null">#{homePort},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBoat" parameterType="TzBoat">
+        update tz_boat
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="boatName != null and boatName != ''">boat_name = #{boatName},</if>
+            <if test="boatType != null">boat_type = #{boatType},</if>
+            <if test="capacityT != null">capacity_t = #{capacityT},</if>
+            <if test="speedKmh != null">speed_kmh = #{speedKmh},</if>
+            <if test="fuelLkm != null">fuel_l_km = #{fuelLkm},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="homePort != null">home_port = #{homePort},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where boat_id = #{boatId}
+    </update>
+
+    <delete id="deleteBoatById" parameterType="Long">
+        delete from tz_boat where boat_id = #{boatId}
+    </delete>
+
+    <delete id="deleteBoatByIds" parameterType="String">
+        delete from tz_boat where boat_id in
+        <foreach collection="array" item="boatId" open="(" separator="," close=")">
+            #{boatId}
+        </foreach>
+    </delete>
+</mapper>

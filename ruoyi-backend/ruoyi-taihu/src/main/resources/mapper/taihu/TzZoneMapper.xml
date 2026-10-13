@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzZoneMapper">
+
+    <resultMap type="TzZone" id="TzZoneResult">
+        <id     property="zoneId"    column="zone_id"    />
+        <result property="zoneName"  column="zone_name"  />
+        <result property="zoneCode"  column="zone_code"  />
+        <result property="areaKm2"   column="area_km2"   />
+        <result property="boundary"  column="boundary"   />
+        <result property="prob72h"   column="prob_72h"   />
+        <result property="tonsQ25"   column="tons_q25"   />
+        <result property="tonsQ50"   column="tons_q50"   />
+        <result property="chla"      column="chla"       />
+        <result property="createBy"  column="create_by"  />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"  column="update_by"  />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"    column="remark"     />
+    </resultMap>
+
+    <sql id="selectTzZoneVo">
+        select zone_id, zone_name, zone_code, area_km2, boundary, prob_72h, tons_q25, tons_q50, chla, create_by, create_time, update_by, update_time, remark from tz_zone
+    </sql>
+
+    <select id="selectZoneList" parameterType="TzZone" resultMap="TzZoneResult">
+        <include refid="selectTzZoneVo"/>
+        <where>
+            <if test="zoneName != null and zoneName != ''">
+                and zone_name like concat('%', #{zoneName}, '%')
+            </if>
+            <if test="zoneCode != null and zoneCode != ''">
+                and zone_code = #{zoneCode}
+            </if>
+        </where>
+        order by zone_id
+    </select>
+
+    <select id="selectZoneById" parameterType="Long" resultMap="TzZoneResult">
+        <include refid="selectTzZoneVo"/>
+        where zone_id = #{zoneId}
+    </select>
+
+    <insert id="insertZone" parameterType="TzZone" useGeneratedKeys="true" keyProperty="zoneId">
+        insert into tz_zone
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="zoneName != null and zoneName != ''">zone_name,</if>
+            <if test="zoneCode != null">zone_code,</if>
+            <if test="areaKm2 != null">area_km2,</if>
+            <if test="boundary != null">boundary,</if>
+            <if test="prob72h != null">prob_72h,</if>
+            <if test="tonsQ25 != null">tons_q25,</if>
+            <if test="tonsQ50 != null">tons_q50,</if>
+            <if test="chla != null">chla,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="zoneName != null and zoneName != ''">#{zoneName},</if>
+            <if test="zoneCode != null">#{zoneCode},</if>
+            <if test="areaKm2 != null">#{areaKm2},</if>
+            <if test="boundary != null">#{boundary},</if>
+            <if test="prob72h != null">#{prob72h},</if>
+            <if test="tonsQ25 != null">#{tonsQ25},</if>
+            <if test="tonsQ50 != null">#{tonsQ50},</if>
+            <if test="chla != null">#{chla},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateZone" parameterType="TzZone">
+        update tz_zone
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="zoneName != null and zoneName != ''">zone_name = #{zoneName},</if>
+            <if test="zoneCode != null">zone_code = #{zoneCode},</if>
+            <if test="areaKm2 != null">area_km2 = #{areaKm2},</if>
+            <if test="boundary != null">boundary = #{boundary},</if>
+            <if test="prob72h != null">prob_72h = #{prob72h},</if>
+            <if test="tonsQ25 != null">tons_q25 = #{tonsQ25},</if>
+            <if test="tonsQ50 != null">tons_q50 = #{tonsQ50},</if>
+            <if test="chla != null">chla = #{chla},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where zone_id = #{zoneId}
+    </update>
+
+    <delete id="deleteZoneById" parameterType="Long">
+        delete from tz_zone where zone_id = #{zoneId}
+    </delete>
+
+    <delete id="deleteZoneByIds" parameterType="String">
+        delete from tz_zone where zone_id in
+        <foreach collection="array" item="zoneId" open="(" separator="," close=")">
+            #{zoneId}
+        </foreach>
+    </delete>
+</mapper>

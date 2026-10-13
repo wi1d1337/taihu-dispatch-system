@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.taihu.mapper.TzDispatchOrderMapper">
+
+    <resultMap type="TzDispatchOrder" id="TzDispatchOrderResult">
+        <id     property="orderId"     column="order_id"     />
+        <result property="orderDate"   column="order_date"   />
+        <result property="halfDay"     column="half_day"     />
+        <result property="boatId"      column="boat_id"      />
+        <result property="zoneId"      column="zone_id"      />
+        <result property="stationId"   column="station_id"   />
+        <result property="planTons"    column="plan_tons"    />
+        <result property="actualTons"  column="actual_tons"  />
+        <result property="status"      column="status"       />
+        <result property="solver"      column="solver"       />
+        <result property="objective"   column="objective"    />
+        <result property="modelVersion" column="model_version" />
+        <result property="runId"       column="run_id"       />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"  column="create_time"  />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"  column="update_time"  />
+        <result property="remark"      column="remark"       />
+        <result property="boatName"    column="boat_name"    />
+        <result property="zoneName"    column="zone_name"    />
+        <result property="stationName" column="station_name" />
+    </resultMap>
+
+    <sql id="selectTzDispatchOrderVo">
+        select o.order_id, o.order_date, o.half_day, o.boat_id, o.zone_id, o.station_id, o.plan_tons, o.actual_tons,
+               o.status, o.solver, o.objective, o.model_version, o.run_id,
+               o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
+               b.boat_name, z.zone_name, s.station_name
+        from tz_dispatch_order o
+        left join tz_boat b on o.boat_id = b.boat_id
+        left join tz_zone z on o.zone_id = z.zone_id
+        left join tz_station s on o.station_id = s.station_id
+    </sql>
+
+    <select id="selectDispatchOrderList" parameterType="TzDispatchOrder" resultMap="TzDispatchOrderResult">
+        <include refid="selectTzDispatchOrderVo"/>
+        <where>
+            <if test="orderDate != null">
+                and date(o.order_date) = date(#{orderDate})
+            </if>
+            <if test="status != null and status != ''">
+                and o.status = #{status}
+            </if>
+            <if test="halfDay != null and halfDay != ''">
+                and o.half_day = #{halfDay}
+            </if>
+            <if test="boatId != null">
+                and o.boat_id = #{boatId}
+            </if>
+            <if test="zoneId != null">
+                and o.zone_id = #{zoneId}
+            </if>
+            <if test="params.beginOrderDate != null and params.beginOrderDate != ''">
+                and date(o.order_date) &gt;= #{params.beginOrderDate}
+            </if>
+            <if test="params.endOrderDate != null and params.endOrderDate != ''">
+                and date(o.order_date) &lt;= #{params.endOrderDate}
+            </if>
+        </where>
+        order by o.order_date desc, o.half_day, o.order_id desc
+    </select>
+
+    <select id="selectDispatchOrderById" parameterType="Long" resultMap="TzDispatchOrderResult">
+        <include refid="selectTzDispatchOrderVo"/>
+        where o.order_id = #{orderId}
+    </select>
+
+    <insert id="insertDispatchOrder" parameterType="TzDispatchOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into tz_dispatch_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderDate != null">order_date,</if>
+            <if test="halfDay != null and halfDay != ''">half_day,</if>
+            <if test="boatId != null">boat_id,</if>
+            <if test="zoneId != null">zone_id,</if>
+            <if test="stationId != null">station_id,</if>
+            <if test="planTons != null">plan_tons,</if>
+            <if test="actualTons != null">actual_tons,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="solver != null">solver,</if>
+            <if test="objective != null">objective,</if>
+            <if test="modelVersion != null">model_version,</if>
+            <if test="runId != null">run_id,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderDate != null">#{orderDate},</if>
+            <if test="halfDay != null and halfDay != ''">#{halfDay},</if>
+            <if test="boatId != null">#{boatId},</if>
+            <if test="zoneId != null">#{zoneId},</if>
+            <if test="stationId != null">#{stationId},</if>
+            <if test="planTons != null">#{planTons},</if>
+            <if test="actualTons != null">#{actualTons},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="solver != null">#{solver},</if>
+            <if test="objective != null">#{objective},</if>
+            <if test="modelVersion != null">#{modelVersion},</if>
+            <if test="runId != null">#{runId},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateDispatchOrder" parameterType="TzDispatchOrder">
+        update tz_dispatch_order
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderDate != null">order_date = #{orderDate},</if>
+            <if test="halfDay != null and halfDay != ''">half_day = #{halfDay},</if>
+            <if test="boatId != null">boat_id = #{boatId},</if>
+            <if test="zoneId != null">zone_id = #{zoneId},</if>
+            <if test="stationId != null">station_id = #{stationId},</if>
+            <if test="planTons != null">plan_tons = #{planTons},</if>
+            <if test="actualTons != null">actual_tons = #{actualTons},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="solver != null">solver = #{solver},</if>
+            <if test="objective != null">objective = #{objective},</if>
+            <if test="modelVersion != null">model_version = #{modelVersion},</if>
+            <if test="runId != null">run_id = #{runId},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where order_id = #{orderId}
+    </update>
+
+    <delete id="deleteDispatchOrderById" parameterType="Long">
+        delete from tz_dispatch_order where order_id = #{orderId}
+    </delete>
+
+    <delete id="deleteDispatchOrderByIds" parameterType="String">
+        delete from tz_dispatch_order where order_id in
+        <foreach collection="array" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+
+    <select id="sumActualTonsByOrderId" resultType="java.math.BigDecimal">
+        select sum(actual_tons) from tz_salvage_log where order_id = #{orderId}
+    </select>
+</mapper>
